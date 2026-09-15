@@ -38,7 +38,7 @@ export default function ActivityPage() {
   const grade = params.grade as string;
   const subject = params.subject as string;
   const activity = getActivityById(activityId) ?? null;
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const handleBack = () => router.push(`/student/sandbox/${grade}/${subject}`);
 
@@ -142,6 +142,10 @@ export default function ActivityPage() {
     return <div className="education-shell"><StudentHeader showBackButton onBack={handleBack} variant="catalog" /><div className="mx-auto max-w-7xl px-5 py-6 sm:px-8 sm:py-8 animate-pulse"><div className="h-96 rounded-2xl bg-teal-50" /></div></div>;
   }
 
+  const studentName = profile?.full_name ?? 'Student';
+  const language = (profile?.language_preference as 'english' | 'kiswahili' | 'mixed') ?? 'mixed';
+  const competencyCode = activity.competency ?? `${activity.subject.toUpperCase()}.${activity.grade.toUpperCase()}.${activity.id}`;
+
   return (
     <div className="education-shell">
       <StudentHeader showBackButton onBack={handleBack} variant="catalog" />
@@ -150,7 +154,7 @@ export default function ActivityPage() {
           <InteractiveSandbox
             key={`${activity.id}-${resumeVariationIndex}`}
             activityType={sandboxActivityType}
-            competency={activity.competency ?? `${activity.subject.toUpperCase()}.${activity.grade.toUpperCase()}.${activity.id}`}
+            competency={competencyCode}
             grade={activity.grade}
             subject={activity.subject}
             question={sandboxVariations[0].question}
@@ -168,13 +172,13 @@ export default function ActivityPage() {
         )}
       </div>
       <FloatingConceptChat
-        studentName="Student"
+        studentName={studentName}
         grade={activity.grade}
+        language={language}
         subject={activity.subject}
-        competencyCode={activity.competency ?? `${activity.subject.toUpperCase()}.${activity.grade.toUpperCase()}.${activity.id}`}
+        competencyCode={competencyCode}
         competencyName={toCompetencyName(activity)}
         question={activity.description || activity.title}
-        hintLevel={0}
       />
     </div>
   );
