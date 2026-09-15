@@ -6,18 +6,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { StudentHeader } from '@/components/layout/student-header';
 import { SubjectHeader } from '@/components/student/subject-header';
 import { SocraticChat } from '@/components/student/socratic-chat';
-import { supabase } from '@/lib/supabase/client';
 import {
   SUBJECT_REGISTRY,
   getSubjectXP,
-  getOrCreateChatSession,
   defaultCompetencyForSubject,
 } from '@/lib/chat/subject-session';
 import type { LearningSession } from '@/lib/session/session-persistence';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Loading skeleton
-// ─────────────────────────────────────────────────────────────────────────────
 
 function PageSkeleton() {
   return (
@@ -47,22 +41,17 @@ export default function SubjectPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-
   const { user, profile, loading: authLoading } = useAuth();
   const [state, setState] = useState<PageState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-
   const subjectMeta = SUBJECT_REGISTRY[slug];
 
   useEffect(() => {
-    if (!subjectMeta) {
-      router.replace('/student/sandbox');
-    }
+    if (!subjectMeta) router.replace('/student/sandbox');
   }, [subjectMeta, router]);
 
   useEffect(() => {
     if (authLoading || !subjectMeta) return;
-
     if (!user) {
       router.replace(`/login?next=/student/subject/${slug}`);
       return;
@@ -73,31 +62,21 @@ export default function SubjectPage() {
 
     const load = async () => {
       try {
-        // The subject shell owns only subject/progress state. The unified
-        // SocraticChat component owns conversation hydration and persistence.
+        // The unified SocraticChat owns conversation hydration/persistence.
+        // This shell fetches only the data needed for the subject header.
         const [xpResult, sessionSyncRaw] = await Promise.all([
           getSubjectXP(userId, slug),
           fetch('/api/session/sync?action=get').then((r) =>
             r.ok ? r.json() : { session: null },
           ),
-          subjectMeta.layout === 'chat'
-            ? getOrCreateChatSession(supabase, userId, slug, grade)
-            : Promise.resolve({ sessionId: '', isNew: false }),
         ]);
 
-        const redisSession: LearningSession | null =
-          sessionSyncRaw?.session ?? null;
-
+        const redisSession: LearningSession | null = sessionSyncRaw?.session ?? null;
         const resumeRaw = redisSession?.currentActivity;
         const resumeActivity =
           resumeRaw && resumeRaw.subject === slug
-            ? {
-                id: resumeRaw.id,
-                name: resumeRaw.name,
-                progress: resumeRaw.progress,
-              }
+            ? { id: resumeRaw.id, name: resumeRaw.name, progress: resumeRaw.progress }
             : null;
-
         const scaffoldingLevel =
           (redisSession?.preferences?.scaffoldingLevel as
             | 'Independent'
@@ -169,7 +148,6 @@ export default function SubjectPage() {
           onBack={() => router.push('/student/sandbox')}
           variant="catalog"
         />
-
         <SubjectHeader
           label={subjectMeta.label}
           slug={slug}
@@ -182,7 +160,6 @@ export default function SubjectPage() {
           onResume={handleResume}
           onStartFresh={handleStartFresh}
         />
-
         <main className="flex flex-1 flex-col overflow-hidden">
           {subjectMeta.layout === 'chat' ? (
             <SocraticChat
