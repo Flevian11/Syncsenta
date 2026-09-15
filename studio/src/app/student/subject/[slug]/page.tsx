@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { StudentHeader } from '@/components/layout/student-header';
 import { SubjectHeader } from '@/components/student/subject-header';
+import { SocraticChat } from '@/components/student/socratic-chat';
 import { supabase } from '@/lib/supabase/client';
 import {
   SUBJECT_REGISTRY,
@@ -15,16 +16,6 @@ import {
 import { getChatMessages } from '@/lib/chat/chat-history-supabase';
 import type { ChatHistoryMessage } from '@/lib/chat/chat-history-supabase';
 import type { LearningSession } from '@/lib/session/session-persistence';
-
-// Lazy-import the two layout components so the bundle is not bloated when
-// neither is needed.
-import dynamic from 'next/dynamic';
-
-const SubjectChat = dynamic(
-  () =>
-    import('@/components/student/subject-chat').then((m) => m.SubjectChat),
-  { ssr: false, loading: () => <PageSkeleton /> },
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading skeleton
@@ -82,7 +73,6 @@ export default function SubjectPage() {
     if (authLoading) return;
     if (!subjectMeta) return;
 
-    // Not logged in → redirect to login, preserve intended destination.
     if (!user) {
       router.replace(`/login?next=/student/subject/${slug}`);
       return;
@@ -93,15 +83,13 @@ export default function SubjectPage() {
 
     const load = async () => {
       try {
-        // Fetch all data in parallel.
+        // Keep the page-level data fetch focused on the subject shell.
+        // SocraticChat owns its own conversation hydration and persistence.
         const [xpResult, sessionSyncRaw, chatSessionResult] = await Promise.all([
           getSubjectXP(userId, slug),
           fetch('/api/session/sync?action=get').then((r) =>
             r.ok ? r.json() : { session: null },
           ),
-          // Sandbox subjects do not need a chat session. Creating one here
-          // made every activity route depend on chat-session RLS/insert
-          // permissions even though the activity player never reads it.
           subjectMeta.layout === 'chat'
             ? getOrCreateChatSession(supabase, userId, slug, grade)
             : Promise.resolve({ sessionId: '', isNew: false }),
@@ -120,7 +108,6 @@ export default function SubjectPage() {
               }
             : null;
 
-        // Read last Omega scaffolding decision from Redis (written fire-and-forget by /api/chat).
         const scaffoldingLevel =
           (redisSession?.preferences?.scaffoldingLevel as
             | 'Independent'
@@ -128,8 +115,8 @@ export default function SubjectPage() {
             | 'Intensive'
             | undefined) ?? null;
 
-        // Fetch chat history only for chat-layout subjects. Sandbox routes do
-        // not need a chat session and should remain usable independently.
+        // Chat history is deliberately no longer passed into a second chat
+        // implementation. SocraticChat loads the canonical conversation itself.
         const rawMessages = chatSessionResult.sessionId
           ? await getChatMessages(chatSessionResult.sessionId)
           : [];
@@ -160,9 +147,7 @@ export default function SubjectPage() {
     load();
   }, [authLoading, user, profile, slug, subjectMeta, router]);
 
-  // ── Guard renders ──────────────────────────────────────────────────────────
-
-  if (!subjectMeta) return null; // redirecting
+  if (!subjectMeta) return null;
 
   if (authLoading || !state) {
     return (
@@ -202,8 +187,6 @@ export default function SubjectPage() {
       const gradeSlug = toSandboxGradeId(grade);
       router.push(`/student/sandbox/${gradeSlug}/${slug}`);
     }
-    // For chat layout, "start fresh" simply scrolls the chat to top — no
-    // navigation needed; the SubjectChat will handle a fresh context on its own.
   };
 
   return (
@@ -230,18 +213,15 @@ export default function SubjectPage() {
 
         <main className="flex flex-1 flex-col overflow-hidden">
           {subjectMeta.layout === 'chat' ? (
-            <SubjectChat
-              subjectSlug={slug}
-              subjectLabel={subjectMeta.label}
-              grade={grade}
-              language={language}
+            <SocraticChat
+              studentId={user?.id ?? 'student'}
               studentName={studentName}
-              sessionId={state.sessionId}
-              initialHistory={state.initialHistory}
-              {...defaultCompetencyForSubject(slug)}
+              grade={grade}
+              subject={slug}
+              language={language}
+              competencyCode={defaultCompetencyForSubject(slug).competencyCode}
             />
           ) : (
-            /* Sandbox layout: redirect to the subject activity list */
             <SandboxRedirect
               slug={slug}
               grade={grade}
@@ -253,10 +233,6 @@ export default function SubjectPage() {
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sandbox redirect panel (shown briefly while router.push fires)
-// ─────────────────────────────────────────────────────────────────────────────
 
 function SandboxRedirect({
   slug,
