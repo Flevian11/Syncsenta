@@ -13,8 +13,6 @@ import {
   getOrCreateChatSession,
   defaultCompetencyForSubject,
 } from '@/lib/chat/subject-session';
-import { getChatMessages } from '@/lib/chat/chat-history-supabase';
-import type { ChatHistoryMessage } from '@/lib/chat/chat-history-supabase';
 import type { LearningSession } from '@/lib/session/session-persistence';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,13 +29,7 @@ function PageSkeleton() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface PageState {
-  sessionId: string;
-  initialHistory: { role: 'user' | 'assistant'; content: string }[];
   totalXP: number;
   level: number;
   nextLevelXP: number;
@@ -62,7 +54,6 @@ export default function SubjectPage() {
 
   const subjectMeta = SUBJECT_REGISTRY[slug];
 
-  // Redirect unknown slugs immediately (before auth resolves).
   useEffect(() => {
     if (!subjectMeta) {
       router.replace('/student/sandbox');
@@ -70,8 +61,7 @@ export default function SubjectPage() {
   }, [subjectMeta, router]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!subjectMeta) return;
+    if (authLoading || !subjectMeta) return;
 
     if (!user) {
       router.replace(`/login?next=/student/subject/${slug}`);
@@ -83,9 +73,9 @@ export default function SubjectPage() {
 
     const load = async () => {
       try {
-        // Keep the page-level data fetch focused on the subject shell.
-        // SocraticChat owns its own conversation hydration and persistence.
-        const [xpResult, sessionSyncRaw, chatSessionResult] = await Promise.all([
+        // The subject shell owns only subject/progress state. The unified
+        // SocraticChat component owns conversation hydration and persistence.
+        const [xpResult, sessionSyncRaw] = await Promise.all([
           getSubjectXP(userId, slug),
           fetch('/api/session/sync?action=get').then((r) =>
             r.ok ? r.json() : { session: null },
@@ -115,23 +105,7 @@ export default function SubjectPage() {
             | 'Intensive'
             | undefined) ?? null;
 
-        // Chat history is deliberately no longer passed into a second chat
-        // implementation. SocraticChat loads the canonical conversation itself.
-        const rawMessages = chatSessionResult.sessionId
-          ? await getChatMessages(chatSessionResult.sessionId)
-          : [];
-        const initialHistory: { role: 'user' | 'assistant'; content: string }[] =
-          rawMessages
-            .filter(
-              (m: ChatHistoryMessage): m is ChatHistoryMessage & { role: 'user' | 'assistant' } =>
-                m.role === 'user' || m.role === 'assistant',
-            )
-            .slice(-40)
-            .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-
         setState({
-          sessionId: chatSessionResult.sessionId,
-          initialHistory,
           totalXP: xpResult.totalXP,
           level: xpResult.level,
           nextLevelXP: xpResult.nextLevelXP,
@@ -176,9 +150,7 @@ export default function SubjectPage() {
   const handleResume = () => {
     if (state.resumeActivity && subjectMeta.layout === 'sandbox') {
       const gradeSlug = toSandboxGradeId(grade);
-      router.push(
-        `/student/sandbox/${gradeSlug}/${slug}/${state.resumeActivity.id}`,
-      );
+      router.push(`/student/sandbox/${gradeSlug}/${slug}/${state.resumeActivity.id}`);
     }
   };
 
