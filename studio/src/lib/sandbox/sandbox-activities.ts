@@ -765,7 +765,8 @@ function guidedFoundationActivity(grade: GradeId, subject: SubjectId): Activity[
 }
 
 function gradeNameToLabel(grade: GradeId): string {
-  return `Grade ${grade.slice(1)}`;
+  const match = String(grade).match(/([1-9])$/);
+  return match ? `Grade ${match[1]}` : String(grade);
 }
 
 // Helper function to get activities for a grade and subject with term filtering

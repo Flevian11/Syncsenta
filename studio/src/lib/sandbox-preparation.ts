@@ -37,7 +37,8 @@ export function subjectToLearningSlug(subject: string): string {
 }
 
 export function prepareSandboxForSubject(grade: string, subject: string): SandboxPreparation {
-  const gradeId = gradeNameToId(grade) as GradeId;
+  const gradeMatch = grade.trim().match(/(?:grade[- ]?|g)([1-9])$/i);
+  const gradeId = (gradeMatch ? `g${gradeMatch[1]}` : gradeNameToId(grade)) as GradeId;
   const subjectId = subjectToSandboxId(subject);
   const firstActivity = subjectId ? getActivitiesForGradeSubject(gradeId, subjectId)[0] : null;
   return {
