@@ -745,6 +745,29 @@ export const activityRegistry: Record<string, Activity[]> = {
   // Add more grades as we build them
 };
 
+function guidedFoundationActivity(grade: GradeId, subject: SubjectId): Activity[] {
+  const label = subject.charAt(0).toUpperCase() + subject.slice(1);
+  return [{
+    id: `${grade}-${subject}-guided-foundation`,
+    grade,
+    subject,
+    type: 'explore',
+    title: `${label} guided foundation`,
+    description: `Start a guided ${label} activity matched to ${gradeNameToLabel(grade)} while the full activity catalogue is being authored.`,
+    difficulty: 1,
+    icon: '🧭',
+    color: 'bg-teal-500',
+    tags: ['guided', 'foundation', grade],
+    prerequisites: [],
+    learningObjectives: [`Build a foundation in ${label}`, 'Explain one idea in your own words', 'Choose a next practice step'],
+    estimatedTime: 15,
+  }];
+}
+
+function gradeNameToLabel(grade: GradeId): string {
+  return `Grade ${grade.slice(1)}`;
+}
+
 // Helper function to get activities for a grade and subject with term filtering
 export function getActivitiesForGradeSubject(
   grade: GradeId,
@@ -752,7 +775,7 @@ export function getActivitiesForGradeSubject(
   filterByTerm: boolean = true
 ): Activity[] {
   const key = `${grade}-${subject}`;
-  let activities = activityRegistry[key] || [];
+  let activities = activityRegistry[key] || guidedFoundationActivity(grade, subject);
   
   // For Grade 2, merge with curriculum-based activities
   if (grade === 'g2' && ['english', 'kiswahili', 'mathematics'].includes(subject)) {

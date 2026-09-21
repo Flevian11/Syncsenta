@@ -56,7 +56,7 @@ interface PageState {
 
 function toSandboxGradeId(grade: string): string {
   const normalized = grade.trim().toLowerCase();
-  const match = normalized.match(/(?:grade[- ]?|g)([1-6])/);
+  const match = normalized.match(/(?:grade[- ]?|g)([1-9])/);
   return match ? `g${match[1]}` : normalized.replace(/[^a-z0-9]+/g, '-');
 }
 
