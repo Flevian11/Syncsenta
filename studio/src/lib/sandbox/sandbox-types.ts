@@ -33,7 +33,6 @@ export type SubjectId =
  */
 export type ExtendedSubjectId =
   | 'blockchain'
-  | 'superintelligence'
   | 'financial-literacy'
   | 'ai'
 

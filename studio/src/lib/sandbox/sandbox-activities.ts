@@ -308,6 +308,30 @@ export const grade2EnglishActivities: Activity[] = [
   }
 ];
 
+// Grade 4 English fallback activity. Keep one playable foundation activity
+// available while the full upper-primary English catalogue is authored.
+export const grade4EnglishGuidedFoundations: Activity[] = [
+  {
+    id: 'g4-english-guided-foundations',
+    grade: 'g4',
+    subject: 'english',
+    type: 'explore',
+    title: 'Guided English Foundations',
+    description: 'Build reading, vocabulary, and sentence skills through guided practice.',
+    difficulty: 1,
+    prerequisites: [],
+    learningObjectives: [
+      'Identify the main idea in a short text',
+      'Use new vocabulary in context',
+      'Write a clear complete sentence',
+    ],
+    estimatedTime: 15,
+    icon: '📖',
+    color: 'bg-blue-500',
+    tags: ['reading', 'vocabulary', 'writing', 'guided-foundations'],
+  },
+];
+
 // Grade 2 Kiswahili Activities
 export const grade2KiswahiliActivities: Activity[] = [
   {
@@ -712,6 +736,7 @@ export const grade2IndigenousActivities: Activity[] = [
 export const activityRegistry: Record<string, Activity[]> = {
   'g2-mathematics': grade2MathActivities,
   'g2-english': grade2EnglishActivities,
+  'g4-english': grade4EnglishGuidedFoundations,
   'g2-kiswahili': grade2KiswahiliActivities,
   'g2-environmental': grade2EnvironmentalActivities,
   'g2-cre': grade2CREActivities,

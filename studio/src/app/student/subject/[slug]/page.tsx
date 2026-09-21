@@ -60,6 +60,12 @@ function toSandboxGradeId(grade: string): string {
   return match ? `g${match[1]}` : normalized.replace(/[^a-z0-9]+/g, '-');
 }
 
+function selectedBrowserGrade(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage.getItem('learningJourney.grade')
+    || window.localStorage.getItem('learningJourney.grade');
+}
+
 export default function SubjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -74,7 +80,7 @@ export default function SubjectPage() {
   // Redirect unknown slugs immediately (before auth resolves).
   useEffect(() => {
     if (!subjectMeta) {
-      router.replace('/student/sandbox');
+      router.replace('/student/learn_by_making');
     }
   }, [subjectMeta, router]);
 
@@ -88,7 +94,11 @@ export default function SubjectPage() {
       return;
     }
 
-    const grade = profile?.grade ?? 'grade-4';
+    const grade = selectedBrowserGrade() ?? profile?.grade;
+    if (!grade) {
+      router.replace('/student/journey');
+      return;
+    }
     const userId = user.id;
 
     const load = async () => {
@@ -170,7 +180,7 @@ export default function SubjectPage() {
         <div className="min-h-[calc(100vh-0.5rem)] overflow-hidden rounded-[1.6rem] bg-[#fffaf0] shadow-2xl sm:rounded-[2rem]">
           <StudentHeader
             showBackButton
-            onBack={() => router.push('/student/sandbox')}
+            onBack={() => router.push('/student/learn_by_making')}
             variant="catalog"
           />
           {loadError ? (
@@ -183,7 +193,11 @@ export default function SubjectPage() {
     );
   }
 
-  const grade = profile?.grade ?? 'grade-4';
+  const grade = selectedBrowserGrade() ?? profile?.grade;
+  if (!grade) {
+    router.replace('/student/journey');
+    return null;
+  }
   const language =
     (profile?.language_preference as 'english' | 'kiswahili' | 'mixed') ?? 'mixed';
   const studentName = profile?.full_name ?? 'Student';
@@ -211,7 +225,7 @@ export default function SubjectPage() {
       <div className="flex min-h-[calc(100vh-0.5rem)] flex-col overflow-hidden rounded-[1.6rem] bg-[#fffaf0] shadow-2xl sm:rounded-[2rem]">
         <StudentHeader
           showBackButton
-          onBack={() => router.push('/student/sandbox')}
+          onBack={() => router.push('/student/learn_by_making')}
           variant="catalog"
         />
 

@@ -7,7 +7,7 @@
  * Shows available lessons and progress.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStudentId } from '@/lib/auth/student-id';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,14 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { BookOpen, Clock, CheckCircle2, PlayCircle, Brain, Sparkles, X } from 'lucide-react';
 import { StudentHeader } from '@/components/layout/student-header';
+import { resolveSelectedGrade } from '@/lib/learning-context';
 
 // Available lessons (hardcoded for MVP)
 const availableLessons = [
   {
-    id: 'grade4-fractions-intro',
+    id: 'fractions-intro',
     title: 'Introduction to Fractions',
     subject: 'Mathematics',
-    grade: 'Grade 4',
     strand: 'Numbers',
     subStrand: 'Fractions',
     estimatedTime: 15,
@@ -41,9 +41,9 @@ const availableLessons = [
 // currently teaches them. Competencies without a built lesson fall through to
 // a "coming soon" banner.
 const competencyToLessonId: Record<string, string> = {
-  'frac-1': 'grade4-fractions-intro',
-  'frac-2': 'grade4-fractions-intro',
-  'frac-3': 'grade4-fractions-intro',
+  'frac-1': 'fractions-intro',
+  'frac-2': 'fractions-intro',
+  'frac-3': 'fractions-intro',
 };
 
 const competencyLabels: Record<string, string> = {
@@ -65,6 +65,11 @@ function TutorDashboardContent() {
   const searchParams = useSearchParams();
   const subjectFilter = searchParams.get('subject') ?? undefined;
   const competencyId = searchParams.get('competency') ?? undefined;
+  const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedGrade(resolveSelectedGrade());
+  }, []);
 
   const matchedLessonId = competencyId ? competencyToLessonId[competencyId] : undefined;
   const competencyLabel = competencyId
@@ -202,7 +207,7 @@ function TutorDashboardContent() {
                       <div className="flex-1">
                         <CardTitle className="text-lg">{lesson.title}</CardTitle>
                         <CardDescription className="mt-1">
-                          {lesson.grade} • {lesson.subject}
+                          {selectedGrade ?? 'Choose your grade'} • {lesson.subject}
                         </CardDescription>
                       </div>
                       {isCompleted && (

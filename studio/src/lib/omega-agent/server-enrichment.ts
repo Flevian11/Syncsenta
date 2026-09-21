@@ -18,6 +18,7 @@
  */
 
 import type { TutoringDecision } from './metta-core';
+import { getLearningTrackPolicy } from '../learning-track-policy';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cultural context (extracted from OmegaAgent.getCulturalAdaptations)
@@ -46,6 +47,8 @@ const CULTURAL_FALLBACK = ['Kenyan classroom', 'school friends', 'local communit
  */
 export function getCulturalExamples(subjectOrTopic: string): string[] {
   const normalised = subjectOrTopic.toLowerCase();
+  const trackPolicy = getLearningTrackPolicy(subjectOrTopic);
+  if (trackPolicy.track !== 'cbc') return trackPolicy.examples.slice(0, 3);
   for (const [key, examples] of Object.entries(KENYAN_CULTURAL_CONTEXT)) {
     if (normalised.includes(key)) {
       return examples.slice(0, 3);

@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase/client';
 interface PerformanceReport {
   id: string;
   child_profile_id: string;
+  source_evidence_id: string | null;
   school_name: string;
   subject: string;
   mastery_percentage: number;
@@ -27,8 +28,29 @@ function ParentContent() {
   const { user, profile, loading, refreshProfile } = useAuth();
   const [reports, setReports] = useState<PerformanceReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [linkedChildIds, setLinkedChildIds] = useState<string[]>([]);
+  const [linksLoading, setLinksLoading] = useState(false);
 
-  const childIds = profile?.children_ids ?? [];
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || profile?.role !== 'parent') return;
+    let cancelled = false;
+    async function loadCanonicalLinks() {
+      setLinksLoading(true);
+      const { data, error } = await (supabase as any)
+        .from('parent_student_links')
+        .select('student_profile_id')
+        .eq('parent_profile_id', userId)
+        .eq('status', 'active');
+      if (!cancelled) {
+        if (error) console.error('Unable to load canonical parent links:', error);
+        setLinkedChildIds((data ?? []).map((row: { student_profile_id: string }) => row.student_profile_id));
+        setLinksLoading(false);
+      }
+    }
+    void loadCanonicalLinks();
+    return () => { cancelled = true; };
+  }, [profile?.role, user?.id]);
 
   useEffect(() => {
     if (!user || profile?.role !== 'parent') return;
@@ -42,7 +64,7 @@ function ParentContent() {
       // regenerated from the live schema.
       const { data, error } = await (supabase as any)
         .from('parent_performance_reports')
-        .select('id, child_profile_id, school_name, subject, mastery_percentage, performance_band, teacher_feedback_summary, next_step, created_at')
+        .select('id, child_profile_id, source_evidence_id, school_name, subject, mastery_percentage, performance_band, teacher_feedback_summary, next_step, created_at')
         .eq('parent_id', parentId)
         .order('created_at', { ascending: false });
 
@@ -57,18 +79,18 @@ function ParentContent() {
     return () => { cancelled = true; };
   }, [profile?.role, user]);
 
-  if (loading) {
+  if (loading || linksLoading) {
     return <main className="education-shell flex min-h-screen items-center justify-center p-6"><p className="text-sm text-muted-foreground">Preparing your private family space…</p></main>;
   }
 
-  const hasVerifiedLink = profile?.role === 'parent' && childIds.length > 0;
+  const hasVerifiedLink = profile?.role === 'parent' && linkedChildIds.length > 0;
 
   if (!user || !hasVerifiedLink) {
     return (
       <main className="education-shell min-h-screen p-6 md:p-10">
         <div className="mx-auto max-w-3xl space-y-6">
           <header className="space-y-3"><Badge variant="secondary">Parent / guardian</Badge><h1 className="text-3xl font-bold tracking-tight md:text-4xl">Your private family space</h1><p className="max-w-2xl text-muted-foreground">No learner information is shown on this account yet. Connect only a learner who intentionally shares their one-time code with you.</p></header>
-          <ParentLinkingCanvas onLinked={() => void refreshProfile()} />
+          <ParentLinkingCanvas onLinked={(result) => { setLinkedChildIds((current) => current.includes(result.student_profile_id) ? current : [...current, result.student_profile_id]); void refreshProfile(); }} />
           <p className="text-center text-xs text-muted-foreground">A wallet address, email address, or school name alone never grants access to a learner.</p>
         </div>
       </main>
@@ -107,7 +129,7 @@ function ParentContent() {
 
         <Card className="border-dashed">
           <CardHeader><CardTitle>Manage this relationship</CardTitle><CardDescription>Use the learner’s one-time code to connect another learner. Existing consent remains protected.</CardDescription></CardHeader>
-          <CardContent className="space-y-3"><ParentLinkingCanvas onLinked={() => void refreshProfile()} /><Button asChild variant="outline"><Link href="/terms">Review privacy and terms <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardContent>
+          <CardContent className="space-y-3"><ParentLinkingCanvas onLinked={(result) => { setLinkedChildIds((current) => current.includes(result.student_profile_id) ? current : [...current, result.student_profile_id]); void refreshProfile(); }} /><Button asChild variant="outline"><Link href="/terms">Review privacy and terms <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardContent>
         </Card>
       </div>
     </main>

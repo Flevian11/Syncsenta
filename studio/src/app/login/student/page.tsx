@@ -54,19 +54,12 @@ export default function StudentLoginPage() {
     }
   };
 
-  const useDemoStudent = async () => {
+  const openDemoStudent = async () => {
     setLoading(true);
     setError('');
-    try {
-      await fetch('/api/auth/demo-login?role=student', {
-        credentials: 'include',
-        redirect: 'manual',
-      });
-      window.location.assign('/student');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to open the demo student workspace.');
-      setLoading(false);
-    }
+    // Navigate through the route so the SSR cookie and temporal demo context
+    // survive the redirect into /student.
+    window.location.assign('/api/auth/demo-login?role=student');
   };
 
   return (
@@ -112,7 +105,7 @@ export default function StudentLoginPage() {
               <Link className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" href="/login">
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to all roles
               </Link>
-              <button className="font-medium text-teal-700 hover:underline" disabled={loading} onClick={() => void useDemoStudent()} type="button">
+              <button className="font-medium text-teal-700 hover:underline" disabled={loading} onClick={() => void openDemoStudent()} type="button">
                 Use demo student
               </button>
             </div>

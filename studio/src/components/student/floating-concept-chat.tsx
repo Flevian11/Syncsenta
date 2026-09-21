@@ -52,7 +52,7 @@ function welcomeMessage(studentName: string, subject: string): ChatMessage {
  */
 export function FloatingConceptChat({
   studentName,
-  grade = 'Grade 4',
+  grade,
   language = 'mixed',
   subject = 'Concept help',
 }: FloatingConceptChatProps) {
@@ -91,6 +91,10 @@ export function FloatingConceptChat({
   const sendMessage = async (rawMessage: string) => {
     const message = rawMessage.trim();
     if (!message || busy) return;
+    if (!grade?.trim()) {
+      setError('Choose your grade before asking the tutor for help.');
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: makeId(),

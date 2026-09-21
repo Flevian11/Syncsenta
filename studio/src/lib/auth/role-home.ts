@@ -3,6 +3,7 @@ export const ROLE_HOME: Record<string, string> = {
   teacher: '/teacher',
   parent: '/parent',
   admin: '/head',
+  head: '/head',
   school_head: '/head',
   school_admin: '/head',
   national_admin: '/head',

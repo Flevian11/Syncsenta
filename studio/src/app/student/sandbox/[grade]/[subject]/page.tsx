@@ -61,7 +61,7 @@ export default function SandboxPage() {
   }, [grade, subject, completedActivityIds]);
 
   const handleBack = () => {
-    router.push('/student/sandbox');
+    router.push('/student/learn_by_making');
   };
 
   const isActivityLocked = (activity: Activity): boolean => {

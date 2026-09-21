@@ -4,13 +4,14 @@ import { ReactNode, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
-export type AppRole = 'student' | 'teacher' | 'parent' | 'admin';
+export type AppRole = 'student' | 'teacher' | 'parent' | 'admin' | 'head';
 
 const HOME_BY_ROLE: Record<AppRole, string> = {
   student: '/student',
   teacher: '/teacher',
   parent: '/parent',
   admin: '/head',
+  head: '/head',
 };
 
 /**
