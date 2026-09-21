@@ -308,6 +308,30 @@ export const grade2EnglishActivities: Activity[] = [
   }
 ];
 
+// Grade 4 English fallback activity. Keep one playable foundation activity
+// available while the full upper-primary English catalogue is authored.
+export const grade4EnglishGuidedFoundations: Activity[] = [
+  {
+    id: 'g4-english-guided-foundations',
+    grade: 'g4',
+    subject: 'english',
+    type: 'explore',
+    title: 'Guided English Foundations',
+    description: 'Build reading, vocabulary, and sentence skills through guided practice.',
+    difficulty: 1,
+    prerequisites: [],
+    learningObjectives: [
+      'Identify the main idea in a short text',
+      'Use new vocabulary in context',
+      'Write a clear complete sentence',
+    ],
+    estimatedTime: 15,
+    icon: '📖',
+    color: 'bg-blue-500',
+    tags: ['reading', 'vocabulary', 'writing', 'guided-foundations'],
+  },
+];
+
 // Grade 2 Kiswahili Activities
 export const grade2KiswahiliActivities: Activity[] = [
   {
@@ -712,6 +736,7 @@ export const grade2IndigenousActivities: Activity[] = [
 export const activityRegistry: Record<string, Activity[]> = {
   'g2-mathematics': grade2MathActivities,
   'g2-english': grade2EnglishActivities,
+  'g4-english': grade4EnglishGuidedFoundations,
   'g2-kiswahili': grade2KiswahiliActivities,
   'g2-environmental': grade2EnvironmentalActivities,
   'g2-cre': grade2CREActivities,
@@ -720,6 +745,30 @@ export const activityRegistry: Record<string, Activity[]> = {
   // Add more grades as we build them
 };
 
+function guidedFoundationActivity(grade: GradeId, subject: SubjectId): Activity[] {
+  const label = subject.charAt(0).toUpperCase() + subject.slice(1);
+  return [{
+    id: `${grade}-${subject}-guided-foundation`,
+    grade,
+    subject,
+    type: 'explore',
+    title: `${label} guided foundation`,
+    description: `Start a guided ${label} activity matched to ${gradeNameToLabel(grade)} while the full activity catalogue is being authored.`,
+    difficulty: 1,
+    icon: '🧭',
+    color: 'bg-teal-500',
+    tags: ['guided', 'foundation', grade],
+    prerequisites: [],
+    learningObjectives: [`Build a foundation in ${label}`, 'Explain one idea in your own words', 'Choose a next practice step'],
+    estimatedTime: 15,
+  }];
+}
+
+function gradeNameToLabel(grade: GradeId): string {
+  const match = String(grade).match(/([1-9])$/);
+  return match ? `Grade ${match[1]}` : String(grade);
+}
+
 // Helper function to get activities for a grade and subject with term filtering
 export function getActivitiesForGradeSubject(
   grade: GradeId,
@@ -727,7 +776,7 @@ export function getActivitiesForGradeSubject(
   filterByTerm: boolean = true
 ): Activity[] {
   const key = `${grade}-${subject}`;
-  let activities = activityRegistry[key] || [];
+  let activities = activityRegistry[key] || guidedFoundationActivity(grade, subject);
   
   // For Grade 2, merge with curriculum-based activities
   if (grade === 'g2' && ['english', 'kiswahili', 'mathematics'].includes(subject)) {

@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   BookOpen, MessageCircle, Brain, Zap, ArrowRight,
   TrendingUp, Target, Trophy, Map, Sparkles,
-  ChevronRight, Flame,
+  ChevronRight, Flame, CalendarDays, Video, PlayCircle,
 } from 'lucide-react';
 import { StudentHeader } from '@/components/layout/student-header';
 import { GamificationOverview } from '@/components/gamification/gamification-overview';
@@ -19,13 +20,14 @@ import { loadGamificationMode } from '@/components/student/gamification-mode-swi
 import { supabase } from '@/lib/supabase/client';
 import { CompetencyMap } from '@/components/student/competency-map';
 import { FloatingConceptChat } from '@/components/student/floating-concept-chat';
-import { getActivitiesForGradeSubject } from '@/lib/sandbox/sandbox-activities';
-import { gradeNameToId } from '@/lib/curriculum/grade-id';
-import type { GradeId, SubjectId } from '@/lib/sandbox/sandbox-types';
 import { useAgeTheme } from '@/lib/theme/age-theme-context';
 import { ErrorState, classifyError } from '@/components/student/error-boundary';
 import { StatCardSkeleton, SubjectCardSkeleton } from '@/components/ui/skeleton';
 import { perfMonitor, measureAsync } from '@/lib/telemetry/performance-monitor';
+import { liveClassesForGrade, timetableForGrade } from '@/lib/learning-plan';
+import { cacheSandboxPreparation, prepareSandboxForSubject } from '@/lib/sandbox-preparation';
+import { getStudentId } from '@/lib/auth/student-id';
+import { resolveSelectedGrade } from '@/lib/learning-context';
 
 interface StudentProfile {
   id: string;
@@ -67,6 +69,19 @@ export default function StudentDashboardPage() {
   const [gamificationMode, setGamificationMode] = useState<GamificationMode>('balanced');
 
   useEffect(() => {
+    const demoQuery = new URLSearchParams(window.location.search);
+    if (demoQuery.get('demo') === '1') {
+      sessionStorage.removeItem('learningJourney.grade');
+      localStorage.removeItem('learningJourney.grade');
+      sessionStorage.removeItem('learningJourney.level');
+      localStorage.removeItem('learningJourney.level');
+      sessionStorage.removeItem('learningJourney.subject');
+      localStorage.removeItem('learningJourney.subject');
+      sessionStorage.removeItem('learningJourney.sandboxPreparation');
+      window.history.replaceState({}, '', '/student');
+      router.push('/student/journey');
+      return;
+    }
     const stored = localStorage.getItem('userName') || localStorage.getItem('studentName');
     if (stored) setStudentName(stored.split(' ')[0]);
     setGamificationMode(loadGamificationMode());
@@ -80,6 +95,14 @@ export default function StudentDashboardPage() {
 
     loadPersonalizedLearningData();
   }, [router]);
+
+  useEffect(() => {
+    const selectedGrade = resolveSelectedGrade(profile?.grade);
+    if (!selectedGrade) return;
+    ['Mathematics', 'English', 'AGI', 'Blockchain', 'Financial Literacy'].forEach((subject) => {
+      cacheSandboxPreparation(prepareSandboxForSubject(selectedGrade, subject));
+    });
+  }, [profile?.grade]);
 
   const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit = {}, ms = 8000) => {
     const ctrl = new AbortController();
@@ -114,9 +137,10 @@ export default function StudentDashboardPage() {
         return data;
       });
       
-      setProfile(profileData.profile);
+      const selectedGrade = resolveSelectedGrade(profileData.profile.grade);
+      setProfile(selectedGrade ? { ...profileData.profile, grade: selectedGrade } : profileData.profile);
       setStudentName(profileData.profile.name);
-      if (profileData.profile.grade) setThemeGrade(profileData.profile.grade);
+      if (selectedGrade) setThemeGrade(selectedGrade);
 
       // Load progress for all subjects in parallel
       const subjects = ['Mathematics', 'English', 'Science'];
@@ -155,21 +179,13 @@ export default function StudentDashboardPage() {
     }
   };
 
-  const goToSandbox = (subject?: string) => {
-    const savedGrade = sessionStorage.getItem('learningJourney.grade') || localStorage.getItem('learningJourney.grade');
+  const openSubjectLearningArea = (subject: string) => {
+    const savedGrade = resolveSelectedGrade(profile?.grade);
     if (!savedGrade) { router.push('/student/journey'); return; }
-    const resolved = subject || localStorage.getItem('learningJourney.subject') || 'Mathematics';
-    const subjectId = resolved.toLowerCase().includes('math') ? 'mathematics'
-      : resolved.toLowerCase().includes('kiswahili') ? 'kiswahili'
-      : resolved.toLowerCase().includes('environment') ? 'environmental'
-      : resolved.toLowerCase().includes('creative') ? 'creative'
-      : resolved.toLowerCase().includes('english') ? 'english' : 'mathematics';
-    const gradeId = gradeNameToId(savedGrade) as GradeId;
-    const first = getActivitiesForGradeSubject(gradeId, subjectId as SubjectId)[0];
-    sessionStorage.setItem('learningJourney.subject', resolved);
-    localStorage.setItem('learningJourney.subject', resolved);
-    if (!first) { router.push(`/student/sandbox?grade=${encodeURIComponent(gradeId)}&subject=${encodeURIComponent(subjectId)}`); return; }
-    router.push(`/student/sandbox/${encodeURIComponent(gradeId)}/${encodeURIComponent(subjectId)}/${encodeURIComponent(first.id)}`);
+    sessionStorage.setItem('learningJourney.subject', subject);
+    localStorage.setItem('learningJourney.subject', subject);
+    cacheSandboxPreparation(prepareSandboxForSubject(savedGrade, subject));
+    router.push(`/student/learn_by_making?grade=${encodeURIComponent(savedGrade)}&subject=${encodeURIComponent(subject)}`);
   };
 
   const greeting = profile
@@ -179,6 +195,9 @@ export default function StudentDashboardPage() {
   const totalSessions = learningProgress.reduce((s, p) => s + p.totalSessions, 0);
   const maxStreak = Math.max(...learningProgress.map(p => p.streakDays), 0);
   const avgProgress = Math.round(learningProgress.reduce((s, p) => s + p.overallProgress, 0) / Math.max(learningProgress.length, 1));
+  const selectedGrade = resolveSelectedGrade(profile?.grade);
+  const timetable = timetableForGrade(selectedGrade);
+  const liveClasses = liveClassesForGrade(selectedGrade);
 
   const isYoung = ageTheme === 'pre-primary' || ageTheme === 'lower-primary';
 
@@ -277,7 +296,7 @@ export default function StudentDashboardPage() {
             </div>
             <div className="flex gap-2 shrink-0">
               <button
-                onClick={() => goToSandbox(learningProgress[0]?.subject)}
+                onClick={() => openSubjectLearningArea(learningProgress[0]?.subject || 'Mathematics')}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm ${theme.ctaClass}`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -296,6 +315,47 @@ export default function StudentDashboardPage() {
             <StatCard theme={theme} label={isYoung ? '🔥 Streak' : 'Streak'} value={maxStreak > 0 ? `${maxStreak}d` : '—'} sub={maxStreak > 0 ? 'days in a row! 🔥' : 'Start today!'} icon={<Flame className="h-4 w-4 text-orange-500" />} />
             <StatCard theme={theme} label={isYoung ? '📈 Progress' : 'Progress'} value={learningProgress.length ? `${avgProgress}%` : '—'} sub="Across subjects" icon={<TrendingUp className="h-4 w-4 text-blue-500" />} />
             <StatCard theme={theme} label={isYoung ? '⭐ Grade' : 'Grade'} value={profile?.grade ?? (sessionStorage.getItem('learningJourney.grade') ?? '—')} sub={profile?.learningStyle ? `${profile.learningStyle} learner` : 'CBC curriculum'} icon={<Target className="h-4 w-4 text-violet-500" />} />
+          </div>
+
+          {/* ── LMS schedule and live classes ── */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card className={`${theme.cardClass} bg-white`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CalendarDays className="h-4 w-4 text-teal-600" />
+                  This week&apos;s timetable
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Your grade-aligned lessons, quizzes, and practice blocks.</p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {timetable.map((item) => (
+                  <button key={item.id} onClick={() => openSubjectLearningArea(item.subject)} className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:border-teal-300 hover:bg-teal-50">
+                    <div className="min-w-20 text-xs font-medium text-muted-foreground">{item.day}<br />{item.time}</div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{item.subject}</p><p className="truncate text-xs text-muted-foreground">{item.activity}</p></div>
+                    <Badge variant="outline" className="capitalize">{item.mode}</Badge>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className={`${theme.cardClass} bg-white`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Video className="h-4 w-4 text-rose-600" />
+                  Live classes
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Join scheduled teacher-led support from your dashboard.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {liveClasses.map((liveClass) => (
+                  <div key={liveClass.id} className="flex items-start gap-3 rounded-lg border p-3">
+                    <PlayCircle className={`mt-0.5 h-4 w-4 shrink-0 ${liveClass.status === 'live' ? 'text-rose-600' : 'text-slate-400'}`} />
+                    <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{liveClass.title}</p><p className="text-xs text-muted-foreground">{liveClass.subject} · {liveClass.grade} · {liveClass.teacher}</p><p className="mt-1 text-xs text-muted-foreground">{liveClass.time}</p></div>
+                    <Badge variant={liveClass.status === 'live' ? 'destructive' : 'secondary'}>{liveClass.status === 'live' ? 'Live now' : 'Upcoming'}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
 
           {/* ── Tab bar ── */}
@@ -322,7 +382,7 @@ export default function StudentDashboardPage() {
                 </h2>
                 {learningProgress.length > 0 ? (
                   learningProgress.map((p, i) => (
-                    <button key={p.subject} onClick={() => goToSandbox(p.subject)}
+                    <button key={p.subject} onClick={() => openSubjectLearningArea(p.subject)}
                       className={`w-full text-left ${theme.cardClass} border p-4 hover:shadow-md transition-all ${theme.subjectColours[i % theme.subjectColours.length]}`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -341,7 +401,7 @@ export default function StudentDashboardPage() {
                     <Brain className="h-8 w-8 mx-auto text-teal-400 mb-2" />
                     <p className="text-sm font-medium text-teal-700">{isYoung ? '✨ No sessions yet — let\'s start!' : 'No sessions yet'}</p>
                     <p className="text-xs text-teal-600 mt-1">Start learning to see your progress here</p>
-                    <button onClick={() => goToSandbox()} className={`mt-3 px-4 py-2 text-sm ${theme.ctaClass}`}>
+                    <button onClick={() => openSubjectLearningArea('Mathematics')} className={`mt-3 px-4 py-2 text-sm ${theme.ctaClass}`}>
                       {isYoung ? '🚀 Begin!' : 'Start first session'}
                     </button>
                   </div>
@@ -359,10 +419,10 @@ export default function StudentDashboardPage() {
                     <p className="text-xs text-muted-foreground">{tutorTaglineFor(profile?.grade)}</p>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    <button className={`w-full flex items-center justify-center gap-1.5 py-2 text-sm ${theme.ctaClass}`}
-                      onClick={() => { const s = localStorage.getItem('learningJourney.subject') || sessionStorage.getItem('learningJourney.subject'); s ? goToSandbox(s) : router.push('/student/journey'); }}>
+                <button className={`w-full flex items-center justify-center gap-1.5 py-2 text-sm ${theme.ctaClass}`}
+                      onClick={() => { const s = localStorage.getItem('learningJourney.subject') || sessionStorage.getItem('learningJourney.subject'); s ? openSubjectLearningArea(s) : router.push('/student/journey'); }}>
                       <MessageCircle className="h-3.5 w-3.5" />
-                      {isYoung ? '💬 Open Sandbox!' : 'Open Sandbox'}
+                      {isYoung ? '💬 Learn by Making!' : 'Learn by Making'}
                       <ArrowRight className="h-3.5 w-3.5 ml-auto" />
                     </button>
                   </CardContent>

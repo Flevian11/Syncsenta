@@ -30,7 +30,7 @@ export interface Database {
           full_name: string | null;
           avatar_url: string | null;
           phone_number: string | null;
-          role: 'student' | 'teacher' | 'parent' | 'admin';
+          role: 'student' | 'teacher' | 'parent' | 'admin' | 'head';
           grade: string | null;
           school_name: string | null;
           student_id: string | null;
@@ -58,7 +58,7 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           phone_number?: string | null;
-          role: 'student' | 'teacher' | 'parent' | 'admin';
+          role: 'student' | 'teacher' | 'parent' | 'admin' | 'head';
           grade?: string | null;
           school_name?: string | null;
           student_id?: string | null;
@@ -86,7 +86,7 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           phone_number?: string | null;
-          role?: 'student' | 'teacher' | 'parent' | 'admin';
+          role?: 'student' | 'teacher' | 'parent' | 'admin' | 'head';
           grade?: string | null;
           school_name?: string | null;
           student_id?: string | null;

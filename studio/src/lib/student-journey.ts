@@ -1,13 +1,12 @@
-export type JourneyStep = 'level' | 'grade' | 'subject';
+export type JourneyStep = 'level' | 'grade' | 'dashboard';
 
 /**
- * Return the next wizard step after a learner selects a grade.
- * Covered grades continue to subject selection; unsupported grades remain
- * unavailable and should not be advanced by the UI.
+ * A covered grade completes onboarding and opens the LMS dashboard. Unsupported
+ * grades remain on the grade step until curriculum coverage is available.
  */
 export function getJourneyStepAfterGrade(
   grade: string,
   coveredGrades: ReadonlySet<string>,
 ): JourneyStep {
-  return coveredGrades.has(grade) ? 'subject' : 'grade';
+  return coveredGrades.has(grade) ? 'dashboard' : 'grade';
 }

@@ -66,7 +66,7 @@ const ACTIONS: { id: TutorAction; label: string }[] = [
 /** Context-aware floating tutor used alongside sandbox activities. */
 export function FloatingConceptChat({
   studentName,
-  grade = 'Grade 4',
+  grade,
   language = 'mixed',
   subject = 'Concept help',
   competencyCode,
@@ -112,6 +112,10 @@ export function FloatingConceptChat({
   const sendMessage = async (rawMessage: string) => {
     const message = rawMessage.trim();
     if (!message || busy) return;
+    if (!grade?.trim()) {
+      setError('Choose your grade before asking the tutor for help.');
+      return;
+    }
 
     const userMessage: ChatMessage = { id: makeId(), role: 'user', content: message };
     const assistantId = makeId();

@@ -15,7 +15,7 @@
  *     it's set, routing renders the canvas instead of `GenericActivity`.
  */
 
-export type GradeId = 'g1' | 'g2' | 'g3' | 'g4' | 'g5' | 'g6'
+export type GradeId = 'g1' | 'g2' | 'g3' | 'g4' | 'g5' | 'g6' | 'g7' | 'g8' | 'g9'
 
 export type SubjectId =
   | 'mathematics'
@@ -33,7 +33,6 @@ export type SubjectId =
  */
 export type ExtendedSubjectId =
   | 'blockchain'
-  | 'superintelligence'
   | 'financial-literacy'
   | 'ai'
 

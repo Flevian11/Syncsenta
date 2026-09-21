@@ -61,7 +61,7 @@ export default function SandboxPage() {
   }, [grade, subject, completedActivityIds]);
 
   const handleBack = () => {
-    router.push('/student/sandbox');
+    router.push('/student/learn_by_making');
   };
 
   const isActivityLocked = (activity: Activity): boolean => {
@@ -74,7 +74,8 @@ export default function SandboxPage() {
   };
 
   const getGradeName = (gradeId: GradeId): string => {
-    return `Grade ${gradeId.replace('g', '')}`;
+    const match = String(gradeId).match(/(?:g|grade-?)([1-9])$/i);
+    return match ? `Grade ${match[1]}` : String(gradeId);
   };
 
   const getSubjectName = (subjectId: SubjectId): string => {

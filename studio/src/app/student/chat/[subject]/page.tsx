@@ -31,7 +31,6 @@ import { WellbeingCheckIn } from '@/components/student/wellbeing-checkin';
 import { resolveTeachingLanguage } from '@/lib/teaching-language-policy';
 
 const STORAGE_GRADE = 'learningJourney.grade';
-const DEFAULT_GRADE = 'Grade 4';
 
 interface PageProps {
   // Next.js 16 wraps dynamic route params in a Promise; React.use() unwraps it.
@@ -46,8 +45,8 @@ function StudentChatContent({ params }: PageProps) {
 
   const subject = decodeURIComponent(subjectParam);
   const routeGrade = searchParams.get('grade')?.trim();
-  const [grade, setGrade] = useState<string>(routeGrade || DEFAULT_GRADE);
-  const effectiveGrade = routeGrade || grade;
+  const [grade, setGrade] = useState<string>(routeGrade || '');
+  const effectiveGrade = routeGrade || grade || profile?.grade || '';
   
   // Use authenticated user ID, fallback to 'anonymous' for unauthenticated sessions
   const studentId = user?.id || 'anonymous-student';
@@ -71,6 +70,11 @@ function StudentChatContent({ params }: PageProps) {
       if (stored) setGrade(stored);
     }
 
+    if (!queryGrade && !grade && !profile?.grade) {
+      router.replace('/student/journey');
+      return;
+    }
+
     if (typeof window !== 'undefined') {
       const savedLanguage = window.localStorage.getItem('preferredLanguage');
       if (savedLanguage === 'english' || savedLanguage === 'kiswahili' || savedLanguage === 'mixed') {
@@ -84,7 +88,9 @@ function StudentChatContent({ params }: PageProps) {
         setChatMode(savedMode as ChatMode);
       }
     }
-  }, [searchParams, subject, grade, routeGrade]);
+  }, [profile?.grade, router, searchParams, subject, grade, routeGrade]);
+
+  if (!effectiveGrade) return <div className="education-shell flex min-h-screen items-center justify-center text-sm text-muted-foreground">Choose your grade to begin…</div>;
 
   return (
     <div className="education-shell flex flex-col">

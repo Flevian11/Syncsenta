@@ -41,7 +41,7 @@ import {
   buildCompassSystemPrompt,
   type LearnerLearningContext,
 } from '@/lib/chat/socratic-prompts';
-import { evaluateTutoringDecision } from '@/lib/omega-agent/metta-core';
+import { evaluateTutoringDecision, MeTTaEducationKnowledgeGraph, MeTTaSession } from '@/lib/omega-agent/metta-core';
 import { classifyAnswerQuality } from '@/lib/omega-agent/answer-quality';
 import { buildOmegaEnrichment, enrichSystemPrompt } from '@/lib/omega-agent/server-enrichment';
 import {
@@ -55,6 +55,7 @@ import { checkChatRateLimit } from '@/lib/session/rate-limit-upstash';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { addChatMessage, createChatSession } from '@/lib/chat/chat-history-supabase';
 import { updateDailyActivity, updateLearningProgress } from '@/lib/progress/progress-tracking';
+import { getLearningTrack } from '@/lib/learning-track-policy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -245,6 +246,7 @@ export async function POST(req: NextRequest) {
   }
 
   const verifiedGrade = profile.grade || body.grade;
+  const learningTrack = getLearningTrack(body.subject);
 
   // Every student turn now passes through the MeTTa session boundary before
   // Omega selects the tutoring policy.  The graph is intentionally scoped to
@@ -376,7 +378,7 @@ export async function POST(req: NextRequest) {
       consecutive_wrong:  contextRow?.consecutive_wrong  ?? null,
     });
 
-    const decision = evaluateTutoringDecision(learningState);
+    const decision = evaluateTutoringDecision(learningState, learningTrack);
 
     // Fire-and-forget Redis scaffolding level write for teacher visibility.
     if (authenticatedUser) {
@@ -591,10 +593,12 @@ export async function POST(req: NextRequest) {
                 frustrationSignal: learningState.frustrationSignal,
                 answerQuality:    classification.quality,
               });
-              supabaseAdmin
+              // The production telemetry table predates generated client types;
+              // keep this cast local to the integration boundary.
+              (supabaseAdmin as any)
                 .from('omega_scaffolding_events')
                 .insert(payloadToDbRow(eventPayload))
-                .then(({ error }) => {
+                .then(({ error }: { error: { message: string } | null }) => {
                   if (error) console.error('[/api/chat] Telemetry write failed:', error.message);
                 });
             }
@@ -612,6 +616,7 @@ export async function POST(req: NextRequest) {
                     urgency: omegaEnrichment.alertUrgency,
                     nextActivityType: omegaEnrichment.nextActivityType,
                     competencyCode:   body.competencyCode,
+                    learningTrack,
                   })}\n\n`,
                 ),
               );

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getSupabaseClient } from '@/lib/supabase/client';
-import { DEMO_DESTINATIONS, type DemoRole } from '@/lib/auth/demo-destinations';
+import type { DemoRole } from '@/lib/auth/demo-destinations';
 
 const DEMO_ACCOUNTS: Array<{ role: DemoRole; label: string; email: string; password: string }> = [
   { role: 'student', label: 'Join as Demo Student', email: 'student01@syncsenta.dev', password: 'Demo@Student01' },
@@ -55,25 +55,11 @@ function LoginContent() {
   };
 
   const signInAsDemo = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
-    if (account.role === 'student') {
-      router.push('/login/student');
-      return;
-    }
     setLoading(true);
     setError('');
-    try {
-      const { error: signInError } = await getSupabaseClient().auth.signInWithPassword({
-        email: account.email,
-        password: account.password,
-      });
-      if (signInError) throw signInError;
-      router.replace(DEMO_DESTINATIONS[account.role]);
-      router.refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to open the demo account.');
-    } finally {
-      setLoading(false);
-    }
+    // Full navigation lets the server write the Supabase SSR cookies and
+    // attach the temporal demo context before the protected workspace loads.
+    window.location.assign(`/api/auth/demo-login?role=${encodeURIComponent(account.role)}`);
   };
 
   return (

@@ -12,6 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { TutoringDecision } from '../omega-agent/metta-core';
 import type { LearnerLearningContext } from './socratic-prompts';
+import { buildLearningTrackPromptBlock } from '../learning-track-policy';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Registry
@@ -19,7 +20,7 @@ import type { LearnerLearningContext } from './socratic-prompts';
 
 export interface SubjectMeta {
   label: string;
-  /** 'chat'    → renders SubjectChat (blockchain, finlit, AI)
+  /** 'chat'    → renders SubjectChat (blockchain, finlit, AGI)
    *  'sandbox' → renders sandbox activity list (core CBC subjects) */
   layout: 'chat' | 'sandbox';
   xpPrefix: string;
@@ -36,9 +37,8 @@ export const SUBJECT_REGISTRY: Record<string, SubjectMeta> = {
   indigenous:           { label: 'Indigenous Language',     layout: 'sandbox', xpPrefix: 'IND.' },
   // Extended courses (chat-first)
   blockchain:           { label: 'Blockchain',              layout: 'chat', xpPrefix: 'blockchain.' },
-  superintelligence:    { label: 'Superintelligence & AI',  layout: 'chat', xpPrefix: 'si.' },
   'financial-literacy': { label: 'Financial Literacy',      layout: 'chat', xpPrefix: 'finlit.' },
-  ai:                   { label: 'Artificial Intelligence', layout: 'chat', xpPrefix: 'ai.' },
+  ai:                   { label: 'AGI',                      layout: 'chat', xpPrefix: 'ai.' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -231,6 +231,7 @@ export function buildDynamicSystemPrompt(params: {
   const lines = [
     `You are syncsenta, a patient Kenyan tutor for ${grade} students.`,
     `Subject: ${subject}. Language: ${language}.`,
+    buildLearningTrackPromptBlock(subject),
     `Student: ${studentName ?? 'the student'}.`,
     `Scaffolding level: ${decision.scaffolding}.`,
     SCAFFOLDING_INSTRUCTIONS[decision.scaffolding],

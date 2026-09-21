@@ -26,6 +26,46 @@ type AssignmentInput = {
   subjects?: string[];
 };
 
+function groupCanonicalAssignments(
+  rows: Array<{ id: string; class_name: string; subject: string | null; status: string | null }>,
+) {
+  const grouped = new Map<string, {
+    id: string;
+    grade: string;
+    level: string;
+    teaching_model: 'generalist' | 'specialist';
+    subjects: string[];
+    is_active: boolean;
+  }>();
+
+  for (const row of rows) {
+    const match = row.class_name.match(/(PP[12]|Grade [1-9])/i);
+    if (!match) continue;
+
+    const grade = match[1].replace(/^pp/i, 'PP').replace(/^grade/i, 'Grade');
+    const level = ['Grade 1', 'Grade 2', 'Grade 3'].includes(grade)
+      ? 'lower-primary'
+      : ['Grade 4', 'Grade 5', 'Grade 6'].includes(grade)
+        ? 'upper-primary'
+        : grade.startsWith('Grade')
+          ? 'junior-secondary'
+          : 'pre-primary';
+    const current = grouped.get(grade) ?? {
+      id: `canonical-${grade.toLowerCase().replace(/\s+/g, '-')}`,
+      grade,
+      level,
+      teaching_model: ['Grade 1', 'Grade 2', 'Grade 3'].includes(grade) ? 'generalist' : 'specialist',
+      subjects: [],
+      is_active: true,
+    };
+
+    if (row.subject && !current.subjects.includes(row.subject)) current.subjects.push(row.subject);
+    grouped.set(grade, current);
+  }
+
+  return [...grouped.values()];
+}
+
 async function requireUser() {
   const supabase = await createSupabaseRouteHandlerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -66,13 +106,7 @@ export async function GET(_request: NextRequest) {
       .eq('is_active', true)
       .order('grade');
 
-    if (gradeError) {
-      console.error('Error fetching grade assignments:', gradeError);
-      return NextResponse.json(
-        { error: 'Failed to fetch grade assignments' },
-        { status: 500 },
-      );
-    }
+    if (gradeError) console.warn('Legacy grade assignments unavailable; using canonical assignments:', gradeError.message);
 
     const { data: subjectAssignments, error: subjectError } = await supabase
       .from('teacher_subject_assignments')
@@ -85,12 +119,26 @@ export async function GET(_request: NextRequest) {
       .order('grade')
       .order('subject');
 
-    if (subjectError) {
-      console.error('Error fetching subject assignments:', subjectError);
-      return NextResponse.json(
-        { error: 'Failed to fetch subject assignments' },
-        { status: 500 },
-      );
+    if (subjectError) console.warn('Legacy subject assignments unavailable; using canonical assignments:', subjectError.message);
+
+    if (gradeError || subjectError || !(gradeAssignments ?? []).length) {
+      const { data: canonicalRows, error: canonicalError } = await supabase
+        .from('teacher_student_assignments')
+        .select('id, class_name, subject, status')
+        .eq('teacher_id', user.id)
+        .eq('status', 'active')
+        .limit(500);
+
+      if (canonicalError) {
+        console.error('Error fetching canonical teacher assignments:', canonicalError);
+        return NextResponse.json({ error: 'Failed to fetch teacher assignments' }, { status: 500 });
+      }
+
+      const canonical = groupCanonicalAssignments(canonicalRows ?? []);
+      return NextResponse.json({
+        success: true,
+        data: { grades: canonical, subjects: [], grouped: canonical },
+      });
     }
 
     const grouped = (gradeAssignments ?? []).map((grade: { grade: string }) => ({

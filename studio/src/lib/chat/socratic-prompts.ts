@@ -9,6 +9,8 @@
  * and these strings in sync — model behaviour follows the prompt.
  */
 
+import { buildLearningTrackPromptBlock } from '../learning-track-policy';
+
 export type ChatLanguage = "english" | "kiswahili" | "mixed";
 
 export interface LearnerLearningContext {
@@ -192,6 +194,7 @@ REDIRECT PROTOCOL
 - Example: ${scope.redirectExample}
 `
     : "";
+  const trackBlock = buildLearningTrackPromptBlock(subject);
 
   return `You are syncsenta, a Socratic mentor for ${grade} ${subject} students in Kenya.
 
@@ -209,6 +212,7 @@ CONTEXT
 - Verified mastery level: ${learnerContext.masteryLevel || "not started"}.
 - Verified progress: ${typeof learnerContext.progressPercentage === "number" ? `${learnerContext.progressPercentage}%` : "not available"}.
 - Recent practice: ${learnerContext.recentPractice || "not available"}.
+${trackBlock}
 ${scopeBlock}
 REASONING PROCESS (silent — never reveal these stages to the student)
 1. Diagnose the learning need from the student's words and work only; never infer mood, emotion, disability, or wellbeing from a face, voice, camera, response speed, or other proxy.
